@@ -2,7 +2,6 @@
 
 #define GRID_SIZE 30
 #define GRID_COUNT 30
-
 #define MAX_SIZE (GRID_COUNT * GRID_COUNT)
 
 const Vector2 screen = { (float)(GRID_SIZE * GRID_COUNT), (float)(GRID_SIZE * GRID_COUNT) };
@@ -39,9 +38,10 @@ int main(void) {
             update_snake(&snake, &food);
         } else {
             if (IsKeyPressed(KEY_ENTER)) {
-                snake = (snake_t){ .length = 3,
-                                   .speed = { 1.0f, 0.0f },
-                                   .position = { { 20, 15 }, { 19, 15 }, { 18, 15 } } };
+                snake =
+                    (snake_t){ .length = 3,
+                               .speed = { 1.0f, 0.0f },
+                               .position = { [0] = { 20.0f, 15.0f }, [1] = { 19.0f, 15.0f }, [2] = { 18.0f, 15.0f } } };
                 food = (food_t){ .position = { 25.0f, 10.0f } };
                 move_counter = 0.0f;
                 game_over = false;
@@ -55,12 +55,14 @@ int main(void) {
             draw_snake(&snake);
             draw_food(&food);
         } else {
-            DrawText("PRESS [ENTER] TO PLAY AGAIN", screen.x / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2,
-                     screen.y / 2 - 50, 20, GRAY);
+            DrawText("PRESS [ENTER] TO PLAY AGAIN",
+                     (int)screen.x / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2, (int)screen.y / 2 - 50, 20,
+                     GRAY);
         }
 
         EndDrawing();
     }
+
     CloseWindow();
     return 0;
 }
@@ -76,12 +78,16 @@ void update_snake(snake_t *snake, food_t *food) {
         snake->speed = (Vector2){ 1.0f, 0.0f };
 
     move_counter += GetFrameTime();
+
     if (move_counter >= move_speed) {
         move_counter = 0.0f;
+
         Vector2 last_tail_pos = snake->position[snake->length - 1];
+
         for (int i = snake->length - 1; i > 0; i--) {
             snake->position[i] = snake->position[i - 1];
         }
+
         snake->position[0].x += snake->speed.x;
         snake->position[0].y += snake->speed.y;
 
@@ -90,15 +96,17 @@ void update_snake(snake_t *snake, food_t *food) {
                 snake->position[snake->length] = last_tail_pos;
                 snake->length++;
             }
-
             food->position.x = (float)GetRandomValue(0, GRID_COUNT - 1);
             food->position.y = (float)GetRandomValue(0, GRID_COUNT - 1);
         }
 
+        if (snake->position[0].x < 0.0f || snake->position[0].x >= (float)GRID_COUNT || snake->position[0].y < 0.0f ||
+            snake->position[0].y >= (float)GRID_COUNT) {
+            game_over = true;
+        }
+
         for (int i = 1; i < snake->length; i++) {
-            if ((snake->position[0].x == snake->position[i].x && snake->position[0].y == snake->position[i].y) ||
-                (snake->position[0].x < 0.0f || snake->position[0].x >= GRID_COUNT || snake->position[0].y < 0.0f ||
-                 snake->position[0].y >= GRID_COUNT)) {
+            if (snake->position[0].x == snake->position[i].x && snake->position[0].y == snake->position[i].y) {
                 game_over = true;
             }
         }
@@ -109,13 +117,11 @@ void draw_snake(const snake_t *snake) {
     for (int i = 0; i < snake->length; i++) {
         Vector2 p = { snake->position[i].x * (float)GRID_SIZE, snake->position[i].y * (float)GRID_SIZE };
         Color color = (i == 0) ? DARKGREEN : GREEN;
-
-        DrawRectangleV(p, (Vector2){ GRID_SIZE - 1, GRID_SIZE - 1 }, color);
+        DrawRectangleV(p, (Vector2){ (float)GRID_SIZE - 1.0f, (float)GRID_SIZE - 1.0f }, color);
     }
 }
 
 void draw_food(const food_t *food) {
     Vector2 p = { food->position.x * (float)GRID_SIZE, food->position.y * (float)GRID_SIZE };
-
-    DrawRectangleV(p, (Vector2){ GRID_SIZE, GRID_SIZE }, RED);
+    DrawRectangleV(p, (Vector2){ (float)GRID_SIZE, (float)GRID_SIZE }, RED);
 }
