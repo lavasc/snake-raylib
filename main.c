@@ -1,127 +1,128 @@
 #include "raylib.h"
+#include <stdlib.h>
 
 #define GRID_SIZE 30
-#define GRID_COUNT 30
-#define MAX_SIZE (GRID_COUNT * GRID_COUNT)
+const int screen_width = GRID_SIZE * GRID_SIZE;
+const int screen_height = GRID_SIZE * GRID_SIZE;
 
-const Vector2 screen = { (float)(GRID_SIZE * GRID_COUNT), (float)(GRID_SIZE * GRID_COUNT) };
+float move_timer = 0.0f;
+float move_delay = 0.1f;
 
-float move_counter = 0.0f;
-float move_speed = 0.1f;
-bool game_over = false;
-
-typedef struct {
-    Vector2 position[MAX_SIZE];
+struct snake {
+    Vector2 position[GRID_SIZE * GRID_SIZE];
     Vector2 speed;
     int length;
-} snake_t;
+    bool can_turn;
+};
 
-typedef struct {
-    Vector2 position;
-} food_t;
+struct state {
+    struct snake snake;
+    Vector2 food;
+    float dt;
+    bool game_over;
+};
 
-void update_snake(snake_t *snake, food_t *food);
-void draw_snake(const snake_t *snake);
-void draw_food(const food_t *food);
+void update(struct state *state);
+void draw(const struct state *state);
 
 int main(void) {
-    InitWindow((int)screen.x, (int)screen.y, "Snake Game");
+    InitWindow(screen_width, screen_height, "snake game");
     SetTargetFPS(60);
 
-    snake_t snake = { .length = 3,
-                      .speed = { 1.0f, 0.0f },
-                      .position = { [0] = { 20.0f, 15.0f }, [1] = { 19.0f, 15.0f }, [2] = { 18.0f, 15.0f } } };
-    food_t food = { .position = { 25.0f, 10.0f } };
-
+    struct state state = {
+        .snake = { .position = { [0] = { 20.0f, 15.0f }, [1] = { 19.0f, 15.0f }, [2] = { 18.0f, 15.0f } },
+                   .speed = { 1.0f, 0.0f },
+                   .length = 3,
+                   .can_turn = true },
+        .food = { 20.0f, 20.0f }
+    };
     while (!WindowShouldClose()) {
-        if (!game_over) {
-            update_snake(&snake, &food);
-        } else {
-            if (IsKeyPressed(KEY_ENTER)) {
-                snake =
-                    (snake_t){ .length = 3,
-                               .speed = { 1.0f, 0.0f },
-                               .position = { [0] = { 20.0f, 15.0f }, [1] = { 19.0f, 15.0f }, [2] = { 18.0f, 15.0f } } };
-                food = (food_t){ .position = { 25.0f, 10.0f } };
-                move_counter = 0.0f;
-                game_over = false;
-            }
-        }
-
-        BeginDrawing();
-        ClearBackground(RAYWHITE);
-
-        if (!game_over) {
-            draw_snake(&snake);
-            draw_food(&food);
-        } else {
-            DrawText("PRESS [ENTER] TO PLAY AGAIN",
-                     (int)screen.x / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2, (int)screen.y / 2 - 50, 20,
-                     GRAY);
-        }
-
-        EndDrawing();
+        state.dt = GetFrameTime();
+        update(&state);
+        draw(&state);
     }
-
     CloseWindow();
     return 0;
 }
 
-void update_snake(snake_t *snake, food_t *food) {
-    if (IsKeyPressed(KEY_UP) && snake->speed.y == 0.0f)
-        snake->speed = (Vector2){ 0.0f, -1.0f };
-    if (IsKeyPressed(KEY_DOWN) && snake->speed.y == 0.0f)
-        snake->speed = (Vector2){ 0.0f, 1.0f };
-    if (IsKeyPressed(KEY_LEFT) && snake->speed.x == 0.0f)
-        snake->speed = (Vector2){ -1.0f, 0.0f };
-    if (IsKeyPressed(KEY_RIGHT) && snake->speed.x == 0.0f)
-        snake->speed = (Vector2){ 1.0f, 0.0f };
-
-    move_counter += GetFrameTime();
-
-    if (move_counter >= move_speed) {
-        move_counter = 0.0f;
-
-        Vector2 last_tail_pos = snake->position[snake->length - 1];
-
-        for (int i = snake->length - 1; i > 0; i--) {
-            snake->position[i] = snake->position[i - 1];
+void update(struct state *state) {
+    if (!state->game_over) {
+        move_timer += state->dt;
+        Vector2 *head = &state->snake.position[0];
+        // 키 입력
+        if (IsKeyPressed(KEY_W) && state->snake.speed.y != 1.0f && state->snake.can_turn) {
+            state->snake.speed = (Vector2){ 0.0f, -1.0f };
+            state->snake.can_turn = false;
         }
-
-        snake->position[0].x += snake->speed.x;
-        snake->position[0].y += snake->speed.y;
-
-        if (snake->position[0].x == food->position.x && snake->position[0].y == food->position.y) {
-            if (snake->length < MAX_SIZE) {
-                snake->position[snake->length] = last_tail_pos;
-                snake->length++;
+        if (IsKeyPressed(KEY_A) && state->snake.speed.x != 1.0f && state->snake.can_turn) {
+            state->snake.speed = (Vector2){ -1.0f, 0.0f };
+            state->snake.can_turn = false;
+        }
+        if (IsKeyPressed(KEY_S) && state->snake.speed.y != -1.0f && state->snake.can_turn) {
+            state->snake.speed = (Vector2){ 0.0f, 1.0f };
+            state->snake.can_turn = false;
+        }
+        if (IsKeyPressed(KEY_D) && state->snake.speed.x != -1.0f && state->snake.can_turn) {
+            state->snake.speed = (Vector2){ 1.0f, 0.0f };
+            state->snake.can_turn = false;
+        }
+        // 뱀 움직임
+        if (move_timer >= move_delay) {
+            move_timer = 0.0f;
+            for (size_t i = state->snake.length - 1; i > 0; --i) {
+                state->snake.position[i] = state->snake.position[i - 1];
             }
-            food->position.x = (float)GetRandomValue(0, GRID_COUNT - 1);
-            food->position.y = (float)GetRandomValue(0, GRID_COUNT - 1);
+            head->x += state->snake.speed.x;
+            head->y += state->snake.speed.y;
+            state->snake.can_turn = true;
         }
-
-        if (snake->position[0].x < 0.0f || snake->position[0].x >= (float)GRID_COUNT || snake->position[0].y < 0.0f ||
-            snake->position[0].y >= (float)GRID_COUNT) {
-            game_over = true;
+        // 벽 충돌
+        if (head->x < 0 || head->x >= GRID_SIZE || head->y < 0 || head->y >= GRID_SIZE) {
+            state->game_over = true;
         }
-
-        for (int i = 1; i < snake->length; i++) {
-            if (snake->position[0].x == snake->position[i].x && snake->position[0].y == snake->position[i].y) {
-                game_over = true;
+        // 몸 충돌
+        for (size_t i = state->snake.length - 1; i > 0; --i) {
+            if (head->x == state->snake.position[i].x && head->y == state->snake.position[i].y) {
+                state->game_over = true;
             }
+        }
+        // 음식 충돌
+        if (head->x == state->food.x && head->y == state->food.y) {
+            state->snake.length++;
+            state->snake.position[state->snake.length - 1] = state->snake.position[state->snake.length - 2];
+            state->food = (Vector2){ (float)GetRandomValue(0, GRID_SIZE - 1), (float)GetRandomValue(0, GRID_SIZE - 1) };
+        }
+    } else {
+        if (IsKeyPressed(KEY_ENTER)) {
+            state->snake.length = 3;
+            state->snake.position[0] = (Vector2){ 20.0f, 15.0f };
+            state->snake.position[1] = (Vector2){ 19.0f, 15.0f };
+            state->snake.position[2] = (Vector2){ 18.0f, 15.0f };
+            state->snake.speed = (Vector2){ 1.0f, 0.0f };
+            state->snake.can_turn = true;
+
+            state->food = (Vector2){ (float)GetRandomValue(0, GRID_SIZE - 1), (float)GetRandomValue(0, GRID_SIZE - 1) };
+            move_timer = 0.0f;
+            state->game_over = false;
         }
     }
 }
 
-void draw_snake(const snake_t *snake) {
-    for (int i = 0; i < snake->length; i++) {
-        Vector2 p = { snake->position[i].x * (float)GRID_SIZE, snake->position[i].y * (float)GRID_SIZE };
-        Color color = (i == 0) ? DARKGREEN : GREEN;
-        DrawRectangleV(p, (Vector2){ (float)GRID_SIZE - 1.0f, (float)GRID_SIZE - 1.0f }, color);
-    }
-}
+void draw(const struct state *state) {
+    BeginDrawing();
+    ClearBackground(BLACK);
 
-void draw_food(const food_t *food) {
-    Vector2 p = { food->position.x * (float)GRID_SIZE, food->position.y * (float)GRID_SIZE };
-    DrawRectangleV(p, (Vector2){ (float)GRID_SIZE, (float)GRID_SIZE }, RED);
+    if (!state->game_over) {
+        DrawRectangleV((Vector2){ (float)state->food.x * GRID_SIZE, state->food.y * (float)GRID_SIZE },
+                       (Vector2){ (float)GRID_SIZE, (float)GRID_SIZE }, RED);
+        for (size_t i = 0; i < state->snake.length; ++i) {
+            Vector2 pos = { state->snake.position[i].x * GRID_SIZE, state->snake.position[i].y * GRID_SIZE };
+            DrawRectangleV(pos, (Vector2){ (float)GRID_SIZE, (float)GRID_SIZE }, GREEN);
+        }
+    } else {
+        DrawText("PRESS [ENTER] TO PLAY AGAIN", screen_width / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2,
+                 screen_height / 2 - 50, 20, WHITE);
+    }
+
+    EndDrawing();
 }
