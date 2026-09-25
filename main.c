@@ -113,9 +113,11 @@ int main(void)
             .pos = {
                 [0] = { 15.0f, 15.0f },
                 [1] = { 14.0f, 15.0f },
-                [2] = { 13.0f, 15.0f } },
+                [2] = { 13.0f, 15.0f }, 
+            },
             .dir = { 1.0f, 0.0f },
-            .length = 3 },
+            .length = 3,
+        },
         .food = { 18.0f, 18.0f },
         .move_delay = 0.075f,
         .move_timer = 0.0f,
