@@ -20,11 +20,11 @@ typedef struct {
     float move_timer;
     bool can_turn;
     bool game_over;
-} Context;
+} context_t;
 
-static Context default_context = {};
+static context_t default_context = {};
 
-static void context_update(Context *ctx)
+static void context_update(context_t *ctx)
 {
     if (!ctx->game_over) {
         // Handle input
@@ -73,7 +73,8 @@ static void context_update(Context *ctx)
         }
 
         // Check wall collision
-        if (ctx->snake.pos[HEAD].y < 0 || ctx->snake.pos[HEAD].y >= GRID_SIZE || ctx->snake.pos[HEAD].x < 0 || ctx->snake.pos[HEAD].x >= GRID_SIZE) {
+        if (ctx->snake.pos[HEAD].y < 0 || ctx->snake.pos[HEAD].y >= GRID_SIZE || ctx->snake.pos[HEAD].x < 0 ||
+            ctx->snake.pos[HEAD].x >= GRID_SIZE) {
             ctx->game_over = true;
         }
     } else {
@@ -83,7 +84,7 @@ static void context_update(Context *ctx)
     }
 }
 
-static void context_draw(const Context *ctx)
+static void context_draw(const context_t *ctx)
 {
     BeginDrawing();
     ClearBackground(RAYWHITE);
@@ -92,23 +93,27 @@ static void context_draw(const Context *ctx)
         // Draw snake
         for (int i = 0; i < ctx->snake.length; ++i) {
             Color color = (i == HEAD) ? DARKGREEN : GREEN;
-            DrawRectangleRec((Rectangle){ ctx->snake.pos[i].x * GRID_SIZE, ctx->snake.pos[i].y * GRID_SIZE, GRID_SIZE - 1, GRID_SIZE - 1 }, color);
+            DrawRectangleRec((Rectangle){ ctx->snake.pos[i].x * GRID_SIZE, ctx->snake.pos[i].y * GRID_SIZE,
+                                          GRID_SIZE - 1, GRID_SIZE - 1 },
+                             color);
         }
 
         // Draw Food
         DrawRectangleRec((Rectangle){ ctx->food.x * GRID_SIZE, ctx->food.y * GRID_SIZE, GRID_SIZE, GRID_SIZE }, RED);
     } else {
         DrawText("GAME OVER", SCREEN_WIDTH / 2 - MeasureText("GAME OVER", 40) / 2, SCREEN_HEIGHT / 2 - 80, 40, RED);
-        DrawText("PRESS [ENTER] TO PLAY AGAIN", SCREEN_WIDTH / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2, SCREEN_HEIGHT / 2, 20, GRAY);
+        DrawText("PRESS [ENTER] TO PLAY AGAIN", SCREEN_WIDTH / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2,
+                 SCREEN_HEIGHT / 2, 20, GRAY);
     }
-    DrawText(TextFormat("SCORE: %d", ctx->snake.length), SCREEN_WIDTH - MeasureText(TextFormat("SCORE: %d", ctx->snake.length), 20) - 20, 20, 20, BLACK);
+    DrawText(TextFormat("SCORE: %d", ctx->snake.length),
+             SCREEN_WIDTH - MeasureText(TextFormat("SCORE: %d", ctx->snake.length), 20) - 20, 20, 20, BLACK);
 
     EndDrawing();
 }
 
 int main(void)
 {
-    Context context = {
+    context_t context = {
         .snake = {
             .pos = {
                 [0] = { 15.0f, 15.0f },
