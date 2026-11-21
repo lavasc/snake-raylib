@@ -2,159 +2,155 @@
 #include <glm/glm.hpp>
 #include <raylib.h>
 #include <vector>
-
-using namespace glm;
 using namespace std;
+using namespace glm;
 
-constexpr ivec2 grid_size{30, 30};
-constexpr int cell_size = 30;
-constexpr ivec2 window_size{grid_size.x * cell_size, grid_size.y * cell_size};
+constexpr float gridSize{30.0f};
+constexpr vec2 windowSize{gridSize * gridSize, gridSize * gridSize};
 
-bool game_over = false;
+bool gameOver{false};
 
-class snake {
-    friend class engine;
-
-public:
-    void update(float dt)
-    {
-        if (can_turn) {
-            if (IsKeyPressed(KEY_A) && dir.x != 1) {
-                dir = {-1, 0};
-                can_turn = false;
-            }
-            if (IsKeyPressed(KEY_D) && dir.x != -1) {
-                dir = {1, 0};
-                can_turn = false;
-            }
-            if (IsKeyPressed(KEY_W) && dir.y != 1) {
-                dir = {0, -1};
-                can_turn = false;
-            }
-            if (IsKeyPressed(KEY_S) && dir.y != -1) {
-                dir = {0, 1};
-                can_turn = false;
-            }
-        }
-
-        move_timer += dt;
-
-        if (move_timer >= move_delay) {
-            move_timer = 0.0f;
-
-            ivec2 next_head = pos.front() + dir;
-
-            if (next_head.x < 0 || next_head.x >= grid_size.x || next_head.y < 0 || next_head.y >= grid_size.y) {
-                game_over = true;
-                return;
-            }
-
-            if (find(pos.begin(), pos.end(), next_head) != pos.end()) {
-                game_over = true;
-                return;
-            }
-
-            pos.insert(pos.begin(), next_head);
-            can_turn = true;
-            if (!has_eaten) {
-                pos.pop_back();
-            }
-            else {
-                has_eaten = false;
-            }
-        }
-    }
-
-    void draw() const
-    {
-        for (const auto& p : pos) {
-            Color color = (&p == &pos.front()) ? DARKGREEN : GREEN;
-            DrawRectangle(p.x * cell_size, p.y * cell_size, cell_size - 1, cell_size - 1, color);
-        }
-    }
+class Food {
+    friend class Engine;
 
 private:
-    vector<ivec2> pos{{9, 10}, {8, 10}, {7, 10}};
-    ivec2 dir{1, 0};
-    float move_delay = 0.1f;
-    float move_timer = 0.0f;
-    bool has_eaten = false;
-    bool can_turn = true;
+    vec2 pos{11.0f, 15.0f};
+
+    void respawn() {
+        vec2 randomPos = {static_cast<float>(GetRandomValue(0, static_cast<int>(gridSize) - 1)), static_cast<float>(GetRandomValue(0, static_cast<int>(gridSize) - 1))};
+        pos = randomPos;
+    }
+    void draw() const {
+        DrawRectangleRec({pos.x * gridSize, pos.y * gridSize, gridSize, gridSize}, RED);
+    }
 };
 
-class engine {
-public:
-    engine()
-    {
-        InitWindow(window_size.x, window_size.y, "snake game");
-        SetTargetFPS(60);
-        spawn_food();
+class Snake {
+    friend class Engine;
+
+private:
+    vector<vec2> pos{{12.0f, 10.0f}, {11.0f, 10.0f}, {10.0f, 10.0f}};
+    vec2 dir{1.0f, 0.0f};
+    float moveDelay{0.1f};
+    float moveTimer{0.0f};
+    bool canTurn{true};
+    bool hasEaten{false};
+
+    bool isEat(vec2 foodPos) {
+        if (pos.front() == foodPos) {
+            return true;
+        }
+        return false;
     }
-    ~engine()
-    {
+    void update(float dt) {
+        if (canTurn) {
+            if (IsKeyPressed(KEY_A) && dir.x != 1.0f) {
+                dir = {-1.0f, 0.0f};
+                canTurn = false;
+            }
+            if (IsKeyPressed(KEY_D) && dir.x != -1.0f) {
+                dir = {1.0f, 0.0f};
+                canTurn = false;
+            }
+            if (IsKeyPressed(KEY_W) && dir.y != 1.0f) {
+                dir = {0.0f, -1.0f};
+                canTurn = false;
+            }
+            if (IsKeyPressed(KEY_S) && dir.y != -1.0f) {
+                dir = {0.0f, 1.0f};
+                canTurn = false;
+            }
+        }
+        moveTimer += dt;
+        if (moveTimer >= moveDelay) {
+            moveTimer = 0.0f;
+
+            vec2 nextHead{pos.front() + dir};
+            if (nextHead.x < 0 || nextHead.x >= gridSize || nextHead.y < 0 || nextHead.y >= gridSize) {
+                gameOver = true;
+                return;
+            }
+            if (find(pos.begin(), pos.end(), nextHead) != pos.end()) {
+                gameOver = true;
+                return;
+            }
+
+            pos.insert(pos.begin(), nextHead);
+            canTurn = true;
+
+            if (hasEaten) {
+                hasEaten = false;
+            } else {
+                pos.pop_back();
+            }
+        }
+    }
+    void draw() const {
+        for (const auto p : pos) {
+            DrawRectangleV({p.x * gridSize, p.y * gridSize}, {gridSize, gridSize}, GREEN);
+        }
+    }
+};
+
+class Engine {
+public:
+    Engine() {
+        SetConfigFlags(FLAG_VSYNC_HINT);
+        InitWindow(static_cast<int>(windowSize.x), static_cast<int>(windowSize.y), "snake game");
+
+        food.respawn();
+    }
+    ~Engine() {
         CloseWindow();
     }
-    engine(const engine&) = delete;
-    engine& operator=(const engine&) = delete;
-    engine(engine&&) = delete;
-    engine& operator=(engine&&) = delete;
 
-    void run()
-    {
+    void run() {
         while (!WindowShouldClose()) {
             update();
-            render();
+            draw();
         }
     }
 
 private:
-    snake player{};
-    ivec2 food{};
+    Snake snake{};
+    Food food{};
 
-    void update()
-    {
-        float dt = GetFrameTime();
-        if (!game_over) {
-            player.update(dt);
-            if (player.pos.front() == food) {
-                player.has_eaten = true;
-                spawn_food();
+    void update() {
+        const float deltaTime{GetFrameTime()};
+        if (!gameOver) {
+            snake.update(deltaTime);
+            if (snake.isEat(food.pos)) {
+                snake.hasEaten = true;
+                food.respawn();
+            }
+        } else {
+            if (IsKeyPressed(KEY_ENTER)) {
+                snake = Snake();
+                food.respawn();
+                gameOver = false;
             }
         }
-        else if (IsKeyPressed(KEY_ENTER)) {
-            player = snake{};
-            spawn_food();
-            game_over = false;
-        }
     }
-    void render() const
-    {
+    void draw() const {
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        if (!game_over) {
-            player.draw();
-            DrawRectangle(food.x * cell_size, food.y * cell_size, cell_size, cell_size, RED);
-        }
-        else {
-            DrawText("GAME OVER", window_size.x / 2 - MeasureText("GAME OVER", 40) / 2, window_size.y / 2 - 80, 40,
+        if (!gameOver) {
+            food.draw();
+            snake.draw();
+        } else {
+            DrawText("GAME OVER", windowSize.x / 2 - MeasureText("GAME OVER", 40) / 2, windowSize.y / 2 - 80, 40,
                      RED);
             DrawText("PRESS [ENTER] TO PLAY AGAIN",
-                     window_size.x / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2, window_size.y / 2, 20,
+                     windowSize.x / 2 - MeasureText("PRESS [ENTER] TO PLAY AGAIN", 20) / 2, windowSize.y / 2, 20,
                      GRAY);
         }
 
         EndDrawing();
     }
-    void spawn_food()
-    {
-        ivec2 random_pos = {GetRandomValue(0, grid_size.x - 1), GetRandomValue(0, grid_size.y - 1)};
-        food = random_pos;
-    }
 };
 
-int main()
-{
-    engine game{};
-    game.run();
+int main() {
+    Engine engine{};
+    engine.run();
 }
